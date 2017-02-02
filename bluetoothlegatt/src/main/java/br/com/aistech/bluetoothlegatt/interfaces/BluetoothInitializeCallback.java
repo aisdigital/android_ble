@@ -1,17 +1,14 @@
 package br.com.aistech.bluetoothlegatt.interfaces;
 
+import android.app.Service;
 import android.content.ServiceConnection;
-
-import br.com.aistech.bluetoothlegatt.exceptions.BTLAGException;
 
 /**
  * Created by jonathan on 01/02/17.
  */
 
-public interface BluetoothInitializeCallback {
-    void successfulInitialized(ServiceConnection serviceConnection);
+public interface BluetoothInitializeCallback<T extends Service> extends BaseBluetoothCallback {
+    void successfulInitialized(T service, ServiceConnection serviceConnection);
 
     void onDisconnected();
-
-    void onError(BTLAGException exception);
 }
