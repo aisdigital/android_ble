@@ -21,8 +21,4 @@ public class BTLAGException extends Exception {
     public BTLAGException(Throwable cause) {
         super(cause);
     }
-
-    protected BTLAGException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
-    }
 }
