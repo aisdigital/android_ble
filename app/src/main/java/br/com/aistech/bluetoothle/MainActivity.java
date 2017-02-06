@@ -8,12 +8,16 @@ import android.bluetooth.BluetoothGattService;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.View;
 
+import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,7 +39,13 @@ public class MainActivity extends AppCompatActivity {
     private BluetoothService service;
     private ServiceConnection serviceConnection;
 
-    private BluetoothGattCharacteristic characteristicToBeWritten;
+    private BluetoothGattService serviceToBeRead;
+
+    private final Handler handler = new Handler();
+
+    private final LinkedList<UUID> serviceList = new LinkedList<>(Arrays.asList(
+            UUID.fromString("5DD62B2B-6117-447D-84BD-1F6EAF12872B")
+    ));
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,12 +58,25 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (characteristicToBeWritten != null) {
-                    MainActivity.this.service.writeCharacteristic(characteristicToBeWritten, "Oh Look, a penny!");
+                if (serviceToBeRead != null) {
+                    handler.postDelayed(new Runnable() {
+                        public void run() {
+
+                            for (BluetoothGattCharacteristic characteristic : getServiceToBeRead().getCharacteristics()) {
+                                MainActivity.this.service.readCharacteristic(characteristic);
+                            }
+
+                            handler.postDelayed(this, 500);
+                        }
+                    }, 500);
                 }
             }
         });
+    }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
         // Requesting Permissions
         requestBluetoothPermission();
     }
@@ -134,7 +157,11 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onCharacteristicRead(BluetoothGattCharacteristic characteristic) {
-                Log.e("BluetoothLE", "Characteristic Read");
+                try {
+                    Log.e("BluetoothLE", "Characteristic READ (UUID: " + characteristic.getUuid() + ", VALUE: " + new String(characteristic.getValue(), "utf-8") + ")");
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                }
             }
 
             @Override
@@ -144,7 +171,11 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onCharacteristicChanged(BluetoothGattCharacteristic characteristic) {
-                Log.e("BluetoothLE", "Characteristic Changed");
+                try {
+                    Log.e("BluetoothLE", "Characteristic READ (UUID: " + characteristic.getUuid() + ", VALUE: " + new String(characteristic.getValue(), "utf-8") + ")");
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                }
             }
 
             @Override
@@ -158,18 +189,20 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
+        service.disconnect();
         service.connect(device.getAddress(), connectCallback);
     }
 
     private void enableNotificationForAllServicesAndCharacteristics(List<BluetoothGattService> services) {
         // Well, let's hear it out
         for (BluetoothGattService gattService : services) {
-            for (BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
 
-                // Get an example to be written
-                if (characteristic.getUuid().equals(UUID.fromString("A198DE6A-2D5D-462F-9CE1-9B34571B6BA3"))) {
-                    MainActivity.this.characteristicToBeWritten = characteristic;
-                }
+            // Get an example to be written
+            if (serviceList.contains(gattService.getUuid())) {
+                MainActivity.this.serviceToBeRead = gattService;
+            }
+
+            for (final BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
 
                 MainActivity.this.service.setCharacteristicNotification(characteristic, true);
             }
@@ -194,5 +227,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         unbindService(serviceConnection);
+    }
+
+    /* Getters */
+
+    public BluetoothGattService getServiceToBeRead() {
+        return serviceToBeRead;
     }
 }

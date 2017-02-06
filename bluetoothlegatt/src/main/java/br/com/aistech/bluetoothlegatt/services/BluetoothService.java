@@ -107,7 +107,7 @@ public class BluetoothService extends Service {
      * callback.
      */
     public void disconnect() {
-        if (bluetoothAdapter == null || bluetoothAdapter == null) {
+        if (bluetoothGatt == null || bluetoothAdapter == null) {
             return;
         }
         bluetoothGatt.disconnect();
@@ -194,7 +194,7 @@ public class BluetoothService extends Service {
 
         // We want to directly connect to the device, so we are setting the autoConnect
         // parameter to false.
-        bluetoothGatt = device.connectGatt(this, false, bluetoothGattCallback);
+        bluetoothGatt = device.connectGatt(this, true, bluetoothGattCallback);
         bluetoothGatt.discoverServices();
         lastDeviceAddress = address;
     }
