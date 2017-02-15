@@ -47,6 +47,7 @@ public class BluetoothService extends Service {
     private BluetoothManager bluetoothManager;
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothGatt bluetoothGatt;
+    private BluetoothGattCallback bluetoothGattCallback;
 
     private String lastDeviceAddress;
 
@@ -113,6 +114,11 @@ public class BluetoothService extends Service {
         bluetoothGatt.disconnect();
     }
 
+    public void closeAndDisconect() {
+        close();
+        disconnect();
+    }
+
     /**
      * Connects to the GATT server hosted on the Bluetooth LE device.
      *
@@ -148,7 +154,7 @@ public class BluetoothService extends Service {
             return;
         }
 
-        BluetoothGattCallback bluetoothGattCallback = new BluetoothGattCallback() {
+        this.bluetoothGattCallback = new BluetoothGattCallback() {
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
                 switch (newState) {
@@ -194,8 +200,7 @@ public class BluetoothService extends Service {
 
         // We want to directly connect to the device, so we are setting the autoConnect
         // parameter to false.
-        bluetoothGatt = device.connectGatt(this, true, bluetoothGattCallback);
-        bluetoothGatt.discoverServices();
+        bluetoothGatt = device.connectGatt(this, true, this.bluetoothGattCallback);
         lastDeviceAddress = address;
     }
 

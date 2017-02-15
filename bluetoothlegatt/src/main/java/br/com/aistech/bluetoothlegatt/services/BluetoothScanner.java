@@ -23,7 +23,7 @@ public class BluetoothScanner {
 
     public static final String TAG = BluetoothAdapter.class.getSimpleName();
 
-    private static final int SCAN_PERIOD = 20000;
+    public static final int SCAN_PERIOD = 20000;
 
     private static BluetoothAdapter.LeScanCallback scanCallback;
     private static BluetoothAdapter.LeScanCallback filteredScanCallback;

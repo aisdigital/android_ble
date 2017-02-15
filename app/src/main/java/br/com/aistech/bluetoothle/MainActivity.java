@@ -44,7 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private final Handler handler = new Handler();
 
     private final LinkedList<UUID> serviceList = new LinkedList<>(Arrays.asList(
-            UUID.fromString("5DD62B2B-6117-447D-84BD-1F6EAF12872B")
+            UUID.fromString("B34902E1-3FEF-45F6-963A-661A9E08714A")
     ));
 
     @Override
@@ -124,9 +124,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void scanDevices(final BluetoothService service) {
-        BluetoothScanner.scanDevicesWithService(MainActivity.this, UUID.fromString("5DD62B2B-6117-447D-84BD-1F6EAF12872B"), new BluetoothScanOnDeviceDiscovered() {
+        BluetoothScanner.scanDevicesWithService(MainActivity.this, UUID.fromString("B34902E1-3FEF-45F6-963A-661A9E08714A"), new BluetoothScanOnDeviceDiscovered() {
             @Override
-            public void onDeviceDiscovered(BluetoothDevice device, List<UUID> services) {
+            public void onDeviceDiscovered(final BluetoothDevice device, final List<UUID> services) {
                 connectDevice(device, service);
             }
         });
@@ -147,6 +147,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onDisconnected(BluetoothDevice device) {
                 Log.e("BluetoothLE", "Device Disconnected");
+
+                // Reconnect
+                connectDevice(device, service);
             }
 
             @Override
@@ -189,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        service.disconnect();
+
         service.connect(device.getAddress(), connectCallback);
     }
 
