@@ -114,9 +114,9 @@ public class BluetoothService extends Service {
         bluetoothGatt.disconnect();
     }
 
-    public void closeAndDisconect() {
-        close();
+    public void disconnectAndClose() {
         disconnect();
+        close();
     }
 
     /**
@@ -200,6 +200,12 @@ public class BluetoothService extends Service {
 
         // We want to directly connect to the device, so we are setting the autoConnect
         // parameter to false.
+
+        bluetoothAdapter.cancelDiscovery();
+
+        // Apparently BLE can manage only one connection at time, so, we disconnect from anyone before attempting another connection!
+        disconnectAndClose();
+
         bluetoothGatt = device.connectGatt(this, true, this.bluetoothGattCallback);
         lastDeviceAddress = address;
     }
@@ -285,5 +291,11 @@ public class BluetoothService extends Service {
         // invoked when the UI is disconnected from the Service.
         close();
         return super.onUnbind(intent);
+    }
+
+    /* Getters */
+
+    public BluetoothAdapter getBluetoothAdapter() {
+        return bluetoothAdapter;
     }
 }
