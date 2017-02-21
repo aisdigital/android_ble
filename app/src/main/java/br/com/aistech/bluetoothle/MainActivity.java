@@ -8,7 +8,6 @@ import android.bluetooth.BluetoothGattService;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -41,19 +40,14 @@ public class MainActivity extends AppCompatActivity {
             UUID.fromString("B34902E1-3FEF-45F6-963A-661A9E08714A")
     ));
 
-    private final LinkedList<UUID> characteristicsList = new LinkedList<>(Arrays.asList(
+    private final LinkedList<UUID> characteristList = new LinkedList<>(Arrays.asList(
             UUID.fromString("EA15CA03-BEA3-40FD-BCA7-33F89F553EDF"),
-            UUID.fromString("6CFF3DC2-8AC8-4D3B-BC06-C0ACECC2C8A5"),
             UUID.fromString("51AD8773-00AA-41C1-9610-10A5F91E874C"),
-            UUID.fromString("6ABF49C1-4DAF-4007-9D69-F4B4F1C3BE91"),
-            UUID.fromString("BFB9339A-50A7-475A-B7E1-AC5C5395613F"),
             UUID.fromString("1EA9FDAA-16B2-46CF-A808-CC47D3AF0F1F"),
             UUID.fromString("0D083428-F5C1-4FD8-93B3-F3058BCC72E6"),
-            UUID.fromString("FE00E5A8-A2A8-44BE-ADAF-7D1C9A59AC91")
+            UUID.fromString("FE00E5A8-A2A8-44BE-ADAF-7D1C9A59AC91"),
+            UUID.fromString("31326DA4-0F07-4D9C-A49F-3967751BC44E")
     ));
-
-    private final Handler handler = new Handler();
-    private Runnable readRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -138,7 +132,6 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("BluetoothLE", "Device Disconnected");
 
                 // Reconnect
-                cancelReadRunnable();
                 connectDevice(device, service);
             }
 
@@ -165,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCharacteristicChanged(BluetoothGattCharacteristic characteristic) {
                 try {
-                    Log.e("BluetoothLE", "Characteristic READ (UUID: " + characteristic.getUuid() + ", VALUE: " + new String(characteristic.getValue(), "utf-8") + ")");
+                    Log.e("BluetoothLE", "Characteristic Changed (UUID: " + characteristic.getUuid() + ", VALUE: " + new String(characteristic.getValue(), "utf-8") + ")");
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
                 }
@@ -185,43 +178,16 @@ public class MainActivity extends AppCompatActivity {
         service.connect(device.getAddress(), connectCallback);
     }
 
-    private void enableNotificationForAllServicesAndCharacteristics(List<BluetoothGattService> services) {
-
-        cancelReadRunnable();
-
-        final List<BluetoothGattCharacteristic> characteristics = new LinkedList<>();
-
+    private void enableNotificationForAllServicesAndCharacteristics(final List<BluetoothGattService> services) {
         // Well, let's hear it out
         for (BluetoothGattService gattService : services) {
 
             // Parse only the know service
             if (serviceList.contains(gattService.getUuid())) {
-
                 // Read only the know characteristics
-                for (final BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
-                    characteristics.add(characteristic);
-                }
+                MainActivity.this.service.setCharacteristicNotification(gattService.getCharacteristics(), true);
             }
         }
-
-        readRunnable = new Runnable() {
-            public void run() {
-                try {
-                    for (BluetoothGattCharacteristic characteristic : characteristics) {
-
-                        if (characteristicsList.contains(characteristic.getUuid())) {
-                            MainActivity.this.service.readCharacteristic(characteristic);
-                            Thread.sleep(1000);
-                        }
-                    }
-                    handler.postDelayed(this, 1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-        };
-
-        handler.postDelayed(readRunnable, 1000);
     }
 
     /* Activity Methods */
@@ -243,14 +209,5 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         unbindService(serviceConnection);
     }
-
-    private void cancelReadRunnable() {
-        if (readRunnable != null) {
-            handler.removeCallbacks(readRunnable);
-        }
-    }
-
-    /* Getters */
-
 
 }

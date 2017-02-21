@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.ComponentName;
@@ -20,6 +21,8 @@ import android.util.Log;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.util.List;
+import java.util.UUID;
 
 import br.com.aistech.bluetoothlegatt.exceptions.BTLAGException;
 import br.com.aistech.bluetoothlegatt.interfaces.BluetoothConnectCallback;
@@ -32,6 +35,8 @@ import br.com.aistech.bluetoothlegatt.interfaces.BluetoothInitializeCallback;
 public class BluetoothService extends Service {
 
     private static final String TAG = BluetoothService.class.getSimpleName();
+
+    private static final UUID ENABLE_NOTIFICATION_FOR_DESCRIPTOR = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
     /**
      * Local Binder
@@ -48,6 +53,8 @@ public class BluetoothService extends Service {
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothGatt bluetoothGatt;
     private BluetoothGattCallback bluetoothGattCallback;
+
+    private CharacteristicNotificationThread notificationEnableThread;
 
     private String lastDeviceAddress;
 
@@ -196,6 +203,18 @@ public class BluetoothService extends Service {
             public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
                 connectCallback.onCharacteristicChanged(characteristic);
             }
+
+            @Override
+            public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+                super.onDescriptorWrite(gatt, descriptor, status);
+                synchronized (notificationEnableThread) {
+                    if (notificationEnableThread != null) {
+                        Log.e("BluetoothService", "Notify Descriptor Thread");
+                        notificationEnableThread.notify();
+                    }
+                }
+
+            }
         };
 
         // We want to directly connect to the device, so we are setting the autoConnect
@@ -215,14 +234,17 @@ public class BluetoothService extends Service {
     /**
      * Enables or disables notification on a give characteristic.
      *
-     * @param characteristic Characteristic to act on.
-     * @param enabled        If true, enable notification.  False otherwise.
+     * @param characteristics Characteristics to act on.
+     * @param enabled         If true, enable notification.  False otherwise.
      */
-    public void setCharacteristicNotification(BluetoothGattCharacteristic characteristic, boolean enabled) {
-        if (bluetoothAdapter == null || bluetoothGatt == null) {
-            return;
+    public synchronized void setCharacteristicNotification(List<BluetoothGattCharacteristic> characteristics, boolean enabled) {
+        if (notificationEnableThread != null) {
+            notificationEnableThread.interrupt();
+            notificationEnableThread = null;
         }
-        bluetoothGatt.setCharacteristicNotification(characteristic, enabled);
+
+        notificationEnableThread = new CharacteristicNotificationThread(characteristics, enabled);
+        notificationEnableThread.start();
     }
 
     // Max data length you can write which is 20 bytes
@@ -297,5 +319,55 @@ public class BluetoothService extends Service {
 
     public BluetoothAdapter getBluetoothAdapter() {
         return bluetoothAdapter;
+    }
+
+    public BluetoothManager getBluetoothManager() {
+        return bluetoothManager;
+    }
+
+    public BluetoothGatt getBluetoothGatt() {
+        return bluetoothGatt;
+    }
+
+    /* CharacteristicNotificationThread */
+
+    class CharacteristicNotificationThread extends Thread {
+
+        private List<BluetoothGattCharacteristic> characteristics;
+        private Boolean enable;
+
+        public CharacteristicNotificationThread(List<BluetoothGattCharacteristic> characteristics, Boolean enable) {
+            super();
+            this.characteristics = characteristics;
+            this.enable = enable;
+        }
+
+        @Override
+        public void run() {
+            super.run();
+            try {
+                synchronized (this) {
+                    for (BluetoothGattCharacteristic characteristic : characteristics) {
+                        if (bluetoothAdapter == null || bluetoothGatt == null) {
+                            return;
+                        }
+
+
+                        Log.e("BluetoothService", "Writing Descriptor for " + characteristic.getUuid().toString());
+                        BluetoothGattDescriptor descriptor = characteristic.getDescriptor(ENABLE_NOTIFICATION_FOR_DESCRIPTOR);
+                        if (descriptor != null) {
+                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                            bluetoothGatt.writeDescriptor(descriptor);
+                            Log.e("BluetoothService", "Waiting Descriptor's response");
+                            wait();
+                        }
+
+                        bluetoothGatt.setCharacteristicNotification(characteristic, enable);
+                    }
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
